@@ -19,13 +19,14 @@ This version implements a basic RAG pipeline:
 - LLM: TBD
 
 ### Project Structure
-src/ingest.py # document loading + chunking
-src/search.py # vector similarity search
-src/rag.py # RAG prompt + response generation
-data/ # raw documents
-embeddings/ # stored vectors
-docs/ # notes and experiments
-
+```
+src/ingest.py   # document loading + chunking
+src/search.py   # vector similarity search
+src/rag.py      # RAG prompt + response generation
+data/           # raw documents
+embeddings/     # stored vectors
+docs/           # notes and experiments
+```
 
 ### Current Status
 In development
