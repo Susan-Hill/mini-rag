@@ -1,9 +1,9 @@
 import os
 import pickle
 from typing import List, Dict
-
 import numpy as np
 import faiss
+import hashlib
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -18,20 +18,35 @@ EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_DIM = 1536  # fixed size for this model
 TOP_K = 3
 
+# Toggle embeddings mode
+USE_OPENAI = False      # False = mock embeddings, True = real OpenAI
+
 # Initialize OPENAI client
 load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+if USE_OPENAI:
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    if not os.getenv("OPENAI_API_KEY"):
+        raise RuntimeError("OpenAI API key missing. Set USE_OPENAI=False or provide a key.")
 
+# Mock embedding function
+def mock_embedding(text: str, dim=EMBEDDING_DIM) -> np.ndarray:
+    
+    # Generate deterministic fake embedding from text for testing.
+    h = int(hashlib.sha256(text.encode()).hexdigest(), 16)
+    rng = np.random.default_rng(h % (2**32))
+    return rng.random(dim).astype("float32")
 
 # Embedding function
-def embed_text(text: str) -> List[float]:
-   
-   # Convert text into a vector embedding using OpenAI.
-       response = client.embeddings.create(
-        model=EMBEDDING_MODEL,
-        input=text
-    )
-    return response.data[0].embedding
+def embed_text(text: str) -> np.ndarray:
+    if USE_OPENAI:
+        # Convert text into a vector embedding using OpenAI.
+        response = client.embeddings.create(
+            model=EMBEDDING_MODEL, 
+            input=text
+            )
+        return np.array(response.data[0].embedding, dtype="float32")
+    else:
+        return mock_embedding(text)
 
 # Build vector index
 def build_index(chunks: List[Dict]) -> None:
@@ -78,7 +93,6 @@ def search(query: str, top_k: int = TOP_K) -> List[Dict]:
     
     # Search the vector index for the most relevant chunks.
     index, metadata = load_index()
-
     query_vector = embed_text(query)
     query_vector = np.array([query_vector], dtype="float32")
 
@@ -90,12 +104,13 @@ def search(query: str, top_k: int = TOP_K) -> List[Dict]:
 
     return results
 
-
 # CLI test - optional
 if __name__ == "__main__":
+    # Ingest documents and build index
     chunks = ingest_documents(DATA_DIR)
     build_index(chunks)
 
+    # Run test query
     query = "What is retrieval augmented generation?"
     results = search(query)
 
